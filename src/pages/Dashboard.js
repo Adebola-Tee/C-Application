@@ -27,13 +27,33 @@ const Dashboard = () => {
 
   const handleInputKeyPress = (e) => {
     if (e.key === 'Enter' && userInput.trim() !== '') {
-      const updatedConversation = {
-        ...currentConversation,
-        messages: [...currentConversation.messages, { text: userInput, type: 'user' }],
-      };
-      setConversations(conversations.map(convo => convo.id === currentConversation.id ? updatedConversation : convo));
-      setCurrentConversation(updatedConversation);
-      setUserInput('');
+      if (!currentConversation) {
+        // Start a new conversation if there is none
+        const newConversation = {
+          id: conversations.length,
+          date: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }),
+          messages: [{ text: 'How do I help you?', type: 'bot' }],
+        };
+        setConversations([...conversations, newConversation]);
+        setCurrentConversation(newConversation);
+        setUserInput('');
+      } else {
+        // Add message to the current conversation
+        const updatedConversation = {
+          ...currentConversation,
+          messages: [...currentConversation.messages, { text: userInput, type: 'user' }],
+        };
+        setConversations(conversations.map(convo => convo.id === currentConversation.id ? updatedConversation : convo));
+        setCurrentConversation(updatedConversation);
+        setUserInput('');
+      }
+    }
+  };
+
+  const deleteConversation = (id) => {
+    setConversations(conversations.filter(convo => convo.id !== id));
+    if (currentConversation && currentConversation.id === id) {
+      setCurrentConversation(null);
     }
   };
 
@@ -57,13 +77,22 @@ const Dashboard = () => {
             {conversations.map(convo => (
               <div
                 key={convo.id}
-                className="p-2 mb-2 bg-white border rounded cursor-pointer"
+                className="p-2 mb-2 bg-white border rounded flex justify-between items-center cursor-pointer"
                 onClick={() => {
                   setCurrentConversation(convo);
                   setShowLeftSection(false);
                 }}
               >
-                Conversation {convo.id + 1}
+                <span>Conversation {convo.id + 1}</span>
+                <button
+                  className="bg-red-500 text-white p-1 rounded-full ml-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteConversation(convo.id);
+                  }}
+                >
+                  X
+                </button>
               </div>
             ))}
           </div>
@@ -78,36 +107,40 @@ const Dashboard = () => {
             </div>
             <button className="lg:hidden" onClick={toggleSection}>Toggle</button>
           </div>
-          {currentConversation && (
-            <div className="flex flex-col h-full">
-              <div className="text-center text-gray-500 mb-2">{currentConversation.date}</div>
-              <div className="flex-grow bg-gray-100 p-4 overflow-y-auto">
-                {currentConversation.messages.map((msg, index) => (
-                  <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    {msg.type === 'bot' && (
-                      <img src="/path/to/chatbot.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
-                    )}
-                    <div className={`p-2 rounded ${msg.type === 'user' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}>
-                      {msg.text}
+          <div className="flex flex-col h-full">
+            {currentConversation ? (
+              <>
+                <div className="text-center text-gray-500 mb-2">{currentConversation.date}</div>
+                <div className="flex-grow bg-gray-100 p-4 overflow-y-auto">
+                  {currentConversation.messages.map((msg, index) => (
+                    <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      {msg.type === 'bot' && (
+                        <img src="/path/to/chatbot.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
+                      )}
+                      <div className={`p-2 rounded ${msg.type === 'user' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-black'}`}>
+                        {msg.text}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center bg-white p-2 border-t">
-                <input
-                  type="text"
-                  placeholder="Replying to chat"
-                  value={userInput}
-                  onChange={handleInputChange}
-                  onKeyPress={handleInputKeyPress}
-                  className="flex-grow p-2 border rounded"
-                />
-                <button className="bg-purple-600 text-white p-2 ml-2 rounded-full">
-                  {/* Logo */}
-                </button>
-              </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex-grow bg-gray-100 p-4 overflow-y-auto"></div>
+            )}
+            <div className="flex items-center bg-white p-2 border-t">
+              <input
+                type="text"
+                placeholder="Replying to chat"
+                value={userInput}
+                onChange={handleInputChange}
+                onKeyPress={handleInputKeyPress}
+                className="flex-grow p-2 border rounded"
+              />
+              <button className="bg-purple-600 text-white p-2 ml-2 rounded-full">
+                {/* Logo */}
+              </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
