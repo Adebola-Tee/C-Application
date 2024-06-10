@@ -36,7 +36,6 @@ const Dashboard = () => {
       setCurrentDateTime(formatDate(date));
     };
 
-
     updateDateTime();
 
     // Update the date and time every minute
@@ -53,7 +52,7 @@ const Dashboard = () => {
   const addConversation = async () => {
     try {
       const response = await createConversation();
-      const newConversation = response.data;
+      const newConversation = { ...response.data, messages: [] }; // Ensure messages is an empty array
       setConversations([...conversations, newConversation]);
       setCurrentConversationState(newConversation);
       setShowLeftSection(false); // Close the left section on small screens
@@ -66,7 +65,7 @@ const Dashboard = () => {
     setLoadingChat(true); // Start chat loading spinner
     try {
       const response = await fetchConversationMessages(conversation.id);
-      setCurrentConversationState({ ...conversation, messages: response.data });
+      setCurrentConversationState({ ...conversation, messages: response.data || [] }); // Ensure messages is an array
     } catch (error) {
       console.error('Error fetching conversation messages:', error);
     } finally {
@@ -156,7 +155,7 @@ const Dashboard = () => {
           </div>
           {loadingConversations ? (
             <div className="bg-light-gray h-full lg:w-full w-4/5 conversation-history flex items-center justify-center">
-            <div className="spinner"></div>
+              <div className="spinner"></div>
               Loading Conversations...
             </div>
           ) : (
@@ -206,11 +205,11 @@ const Dashboard = () => {
                 <div className="flex-grow bg-gray-100 p-4 overflow-y-auto">
                   {loadingChat ? (
                     <div className="flex items-center justify-center">
-                    <div className="spinner"></div>
+                      <div className="spinner"></div>
                       Loading Messages...
                     </div>
                   ) : (
-                    currentConversation.messages.map((msg, index) => (
+                    currentConversation.messages && currentConversation.messages.map((msg, index) => (
                       <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                         {msg.type === 'bot' && (
                           <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
@@ -221,7 +220,6 @@ const Dashboard = () => {
                               {msg.text}
                             </div>
                             <img src={userAvatar} alt="User Avatar" className="h-8 w-8 rounded-full mr-2" />
-
                           </div>
                         )}
                       </div>
@@ -257,4 +255,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
