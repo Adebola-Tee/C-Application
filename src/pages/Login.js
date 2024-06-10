@@ -2,24 +2,61 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Input from '../components/Input';
 import Button from '../components/Button';
+import axios from 'axios';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Get user from local storage
-    const user = JSON.parse(localStorage.getItem('user'));
+    // Check if all fields are filled
+    if (!email || !password) {
+      alert('Please complete all fields.');
+      return;
+    }
 
-    // Check if user exists and password matches
-    if (user && user.email === email && user.password === password) {
-      alert('Login successful!');
-      navigate('/dashboard');
-    } else {
-      alert('Invalid email or password.');
+    try {
+      // Make the API call to log in
+      const response = await axios.post('https://x8ki-letl-twmt.n7.xano.io/api:SSOLzzIz/auth/login', {
+        email,
+        password
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Response:', response);
+
+      if (response.status === 200) {
+        // Successfully logged in
+        const { authToken } = response.data;
+        
+        // Save the authToken to local storage (or any state management you prefer)
+        localStorage.setItem('authToken', authToken);
+
+        alert('Login successful!');
+        navigate('/dashboard'); // Redirect to the dashboard
+      } else {
+        alert(`Login failed: ${response.data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      if (error.response) {
+        // Request made and server responded
+        console.error('Error response:', error.response.data);
+        alert(`Login failed: ${error.response.data.message || 'Invalid credentials'}`);
+      } else if (error.request) {
+        // Request made but no response received
+        console.error('Error request:', error.request);
+        alert('Login failed: No response from server.');
+      } else {
+        // Something happened in setting up the request
+        console.error('Error message:', error.message);
+        alert(`Login failed: ${error.message}`);
+      }
     }
   };
 

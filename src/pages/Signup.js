@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Input from '../components/Input';
 import Button from '../components/Button';
+import axios from 'axios';
 
 const SignUp = () => {
   const [email, setEmail] = useState('');
@@ -9,7 +10,7 @@ const SignUp = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Email validation regex
@@ -33,13 +34,41 @@ const SignUp = () => {
       return;
     }
 
-    // Save user information to local storage
-    const user = { email, name, password };
-    localStorage.setItem('user', JSON.stringify(user));
+    // Sign up using API
+    try {
+      const response = await axios.post('https://x8ki-letl-twmt.n7.xano.io/api:SSOLzzIz/auth/signup', {
+        name,
+        email,
+        password,
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-    // Handle successful sign-up logic here (e.g., redirect to login)
-    alert('Sign-up successful! Please log in.');
-    window.location.href = '/login';
+      console.log('Response:', response);
+
+      if (response.status === 200) {
+        alert('Sign-up successful! Please log in.');
+        window.location.href = '/login';
+      } else {
+        alert(`Sign-up failed: ${response.data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      if (error.response) {
+        // Request made and server responded
+        console.error('Error response:', error.response.data);
+        alert(`Sign-up failed: ${error.response.data.message || 'Unknown error'}`);
+      } else if (error.request) {
+        // Request made but no response received
+        console.error('Error request:', error.request);
+        alert('Sign-up failed: No response from server.');
+      } else {
+        // Something happened in setting up the request
+        console.error('Error message:', error.message);
+        alert(`Sign-up failed: ${error.message}`);
+      }
+    }
   };
 
   return (
