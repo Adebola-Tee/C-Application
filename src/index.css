@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+.custom-swal-popup {
+    @apply bg-custom-purple;
+  }
+
+
+.custom-swal-title {
+    @apply text-white text-base;
+  }
+  
+  .custom-swal-buttons {
+    @apply text-sm;
+  }

@@ -3,7 +3,8 @@ import { fetchConversations, fetchConversationMessages, createConversation, dele
 import { formatDate } from '../components/Date';
 import userAvatar from '../assets/Avatar.png';
 import Header from '../components/Header';
-
+import'../index.css';
+import Swal from 'sweetalert2'; 
 
 // CSS styles for the circular spinner
 const spinnerStyle = {
@@ -44,7 +45,7 @@ const Dashboard = () => {
       setCurrentDateTime(formatDate(date));
     };
 
-    // Set the initial date and time
+    
     updateDateTime();
 
     // Update the date and time every minute
@@ -111,12 +112,36 @@ const Dashboard = () => {
     }
   };
 
-  const deleteConversation = async (id) => {
-    try {
-      await deleteConversation(id);
-      setConversations(conversations.filter(convo => convo.id !== id));
-      if (currentConversation && currentConversation.id === id) {
-        setCurrentConversationState(null);
+  const confirmDelete = async (id) => {
+      try {
+        const conversationToDelete = conversations.find(convo => convo.id === id);
+        if (!conversationToDelete) {
+          console.error('Conversation not found.');
+          return;
+        }
+      const result = await Swal.fire({
+        title: `Are you sure you want to delete conversation ${conversationToDelete.id + 1}?`,
+        showCancelButton: true,
+        confirmButtonColor: '#FF0000',
+        cancelButtonColor: '#DDF3FF',
+        confirmButtonText: 'Yes',
+        cancelButtonText: 'No',
+        reverseButtons: true,
+        customClass: {
+          title: 'custom-swal-title', 
+        popup: 'bg-custom-purple', // Add a custom class for styling
+      },
+      });
+
+      if (result.isConfirmed) {
+        await deleteConversation(id);
+        setConversations(conversations.filter(convo => convo.id !== id));
+        if (currentConversation && currentConversation.id === id) {
+          setCurrentConversationState(null);
+        }
+        Swal.fire('Deleted!', 'Your conversation has been deleted.', 'success');
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        Swal.fire('Cancelled', 'Your conversation is safe :)', 'error');
       }
     } catch (error) {
       console.error('Error deleting conversation:', error);
@@ -132,112 +157,112 @@ const Dashboard = () => {
             <span className='font-manrope text-base font-normal leading-5 text-left'>Conversation</span>
             <span className="cursor-pointer w-6 h-6" onClick={addConversation}>+</span>
             <img
-              src="/images/menu-toggle.png"
-              alt="Toggle Image"
-              className="lg:hidden cursor-pointer"
-              onClick={toggleSection}
-            />
-          </div>
-          {loadingConversations ? (
-            <div className="bg-light-gray h-full lg:w-full w-4/5 conversation-history flex items-center justify-center">
-              <div style={spinnerStyle}></div>
-              Loading Conversations...
-            </div>
-          ) : (
-            <div className="bg-light-gray h-full lg:w-full w-4/5 conversation-history">
-              {conversations.map(convo => (
-                <div
-                  key={convo.id}
-                  className={`p-2 mb-2 border rounded flex justify-between items-center cursor-pointer ${currentConversation && currentConversation.id === convo.id ? 'bg-custom-purple text-white' : 'bg-light-gray text-black'}`}
-                  onClick={() => setCurrentConversation(convo)}
-                >
-                  <span>Conversation {convo.id + 1}</span>
-                  <button
-                    className="p-1 ml-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteConversation(convo.id);
-                    }}
-                  >
-                    <img
-                      src="/images/delete.png"
-                      alt="Delete Conversation"
-                      className="w-4 h-4"
-                    />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+            src="/images/menu-toggle.png"
+            alt="Toggle"
+            className="lg:hidden cursor-pointer"
+            onClick={toggleSection}
+          />
         </div>
-        <div className={`flex-grow p-4 ${showLeftSection ? 'hidden' : 'block'}`} style={{ minHeight: 'calc(100vh -72px)' }}>
-          <div className="flex items-center justify-between bg-custom-blue text-white p-2 mb-4">
-            <div className="flex items-center">
-              <img src="/images/profile image.png" alt="profile" className="h-8 w-8 rounded-full mr-2" />
-              <span>Chatbot</span>
-            </div>
-            <img
-              src="/images/menu-toggle.png"
-              alt="Toggle Icon"
-              className="lg:hidden cursor-pointer"
-              onClick={toggleSection}
-            />
+        {loadingConversations ? (
+          <div className="bg-light-gray h-full lg:w-full w-4/5 conversation-history flex items-center justify-center">
+            <div style={spinnerStyle}></div>
+            Loading Conversations...
           </div>
-          <div className="flex flex-col h-full">
-          {currentConversation ? (
-            <>
-              <div className="text-center text-gray-500 mb-2">{currentDateTime}</div>
-              <div className="flex-grow bg-gray-100 p-4 overflow-y-auto">
-                {loadingChat ? (
-                  <div className="flex items-center justify-center">
-                    <div style={spinnerStyle}></div>
-                    Loading Messages...
-                  </div>
-                ) : (
-                  currentConversation.messages.map((msg, index) => (
-                    <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      {msg.type === 'bot' && (
-                        <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
-                      )}
-                      {msg.type === 'user' && (
-                        <div className="flex items-center">
-                        <div className={`p-2 rounded ${msg.type === 'user' ? 'bg-custom-purple text-white' : 'bg-gray-200 text-black'}`}>
-                            {msg.text}
-                          </div>
-                          <img src={userAvatar} alt="User Avatar" className="h-8 w-8 rounded-full mr-2" />
-                          
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
+        ) : (
+          <div className="bg-light-gray h-full lg:w-full w-4/5 conversation-history">
+            {conversations.map(convo => (
+              <div
+                key={convo.id}
+                className={`p-2 mb-2 border rounded flex justify-between items-center cursor-pointer ${currentConversation && currentConversation.id === convo.id ? 'bg-custom-purple text-white' : 'bg-light-gray text-black'}`}
+                onClick={() => setCurrentConversation(convo)}
+              >
+                <span>Conversation {convo.id + 1}</span>
+                <button
+                  className="p-1 ml-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirmDelete(convo.id); // Change to confirmDelete
+                  }}
+                >
+                  <img
+                    src="/images/delete.png"
+                    alt="Delete Conversation"
+                    className="w-4 h-4"
+                  />
+                </button>
               </div>
-            </>
-          ) : (
-            <div className="flex-grow bg-gray-100 p-4 overflow-y-auto"></div>
-          )}
-            <div className="flex items-center bg-white p-2 border-t">
-              <input
-                type="text"
-                placeholder="Replying to chat"
-                value={userInput}
-                onChange={handleInputChange}
-                onKeyPress={handleInputKeyPress}
-                className="flex-grow p-2 border rounded"
-              />
-              <button className="bg-custom-purple rounded-full p-2 ml-2">
-                <img
-                  src="/images/send.png"
-                  alt="Logo"
-                  className="w-8 h-8 rounded-full"
-                />
-              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className={`flex-grow p-4 ${showLeftSection ? 'hidden' : 'block'}`} style={{ minHeight: 'calc(100vh -72px)' }}>
+        <div className="flex items-center justify-between bg-custom-blue text-white p-2 mb-4">
+          <div className="flex items-center">
+            <img src="/images/profile image.png" alt="profile" className="h-8 w-8 rounded-full mr-2" />
+            <span>Chatbot</span>
+          </div>
+          <img
+            src="/images/menu-toggle.png"
+            alt="Toggle Icon"
+            className="lg:hidden cursor-pointer"
+            onClick={toggleSection}
+          />
+        </div>
+        <div className="flex flex-col h-full">
+        {currentConversation ? (
+          <>
+            <div className="text-center text-gray-500 mb-2">{currentDateTime}</div>
+            <div className="flex-grow bg-gray-100 p-4 overflow-y-auto">
+              {loadingChat ? (
+                <div className="flex items-center justify-center">
+                  <div style={spinnerStyle}></div>
+                  Loading Messages...
+                </div>
+              ) : (
+                currentConversation.messages.map((msg, index) => (
+                  <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {msg.type === 'bot' && (
+                      <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
+                    )}
+                    {msg.type === 'user' && (
+                      <div className="flex items-center">
+                      <div className={`p-2 rounded ${msg.type === 'user' ? 'bg-custom-purple text-white' : 'bg-gray-200 text-black'}`}>
+                          {msg.text}
+                        </div>
+                        <img src={userAvatar} alt="User Avatar" className="h-8 w-8 rounded-full mr-2" />
+                        
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
+          </>
+        ) : (
+          <div className="flex-grow bg-gray-100 p-4 overflow-y-auto"></div>
+        )}
+          <div className="flex items-center bg-white p-2 border-t">
+            <input
+              type="text"
+              placeholder="Reply to Chatbot"
+              value={userInput}
+              onChange={handleInputChange}
+              onKeyPress={handleInputKeyPress}
+              className="flex-grow p-2 border rounded"
+            />
+            <button className="bg-custom-purple rounded-full p-2 ml-2">
+              <img
+                src="/images/send.png"
+                alt="Logo"
+                className="w-8 h-8 rounded-full"
+              />
+            </button>
           </div>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default Dashboard;
