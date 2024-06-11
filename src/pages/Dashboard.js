@@ -3,14 +3,14 @@ import { fetchConversations, fetchConversationMessages, createConversation, dele
 import { formatDate } from '../components/Date';
 import userAvatar from '../assets/Avatar.png';
 import Header from '../components/Header';
+import Swal from 'sweetalert2';
 import '../index.css';
 import './Dashboard.css';
-import Swal from 'sweetalert2';
 
 const Dashboard = () => {
   const [showLeftSection, setShowLeftSection] = useState(false);
   const [conversations, setConversations] = useState([]);
-  const [currentConversation, setCurrentConversationState] = useState(null);
+  const [currentConversation, setCurrentConversation] = useState(null);
   const [userInput, setUserInput] = useState('');
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
@@ -18,7 +18,7 @@ const Dashboard = () => {
   const [botTyping, setBotTyping] = useState(false);
 
   useEffect(() => {
-    const getConversations = async () => {
+    const fetchInitialData = async () => {
       setLoadingConversations(true);
       try {
         const response = await fetchConversations();
@@ -30,41 +30,39 @@ const Dashboard = () => {
       }
     };
 
-    getConversations();
+    fetchInitialData();
 
     const updateDateTime = () => {
-      const date = new Date();
-      setCurrentDateTime(formatDate(date));
+      setCurrentDateTime(formatDate(new Date()));
     };
 
     updateDateTime();
-
     const intervalId = setInterval(updateDateTime, 60000);
 
     return () => clearInterval(intervalId);
   }, []);
 
-  const toggleSection = () => {
-    setShowLeftSection(!showLeftSection);
+  const handleToggleSection = () => {
+    setShowLeftSection(prevState => !prevState);
   };
 
-  const addConversation = async () => {
+  const handleAddConversation = async () => {
     try {
       const response = await createConversation();
       const newConversation = { ...response.data, messages: [] };
-      setConversations([...conversations, newConversation]);
-      setCurrentConversationState(newConversation);
+      setConversations(prevConversations => [...prevConversations, newConversation]);
+      setCurrentConversation(newConversation);
       setShowLeftSection(false);
     } catch (error) {
       console.error('Error creating conversation:', error);
     }
   };
 
-  const setCurrentConversation = async (conversation) => {
+  const handleSetCurrentConversation = async (conversation) => {
     setLoadingChat(true);
     try {
       const response = await fetchConversationMessages(conversation.id);
-      setCurrentConversationState({ ...conversation, messages: response.data || [] });
+      setCurrentConversation({ ...conversation, messages: response.data || [] });
     } catch (error) {
       console.error('Error fetching conversation messages:', error);
     } finally {
@@ -78,43 +76,35 @@ const Dashboard = () => {
   };
 
   const handleInputKeyPress = async (e) => {
-    if (e.key === 'Enter' && userInput.trim() !== '') {
+    if (e.key === 'Enter' && userInput.trim()) {
       if (currentConversation) {
-        const updatedConversation = {
-          ...currentConversation,
-          messages: [...currentConversation.messages, { text: userInput, type: 'user' }],
-        };
-        setCurrentConversationState(updatedConversation);
+        const newMessage = { text: userInput, type: 'user' };
+        const updatedConversation = { ...currentConversation, messages: [...currentConversation.messages, newMessage] };
+        setCurrentConversation(updatedConversation);
         setUserInput('');
-
-        setBotTyping(true); // Show typing animation
+        setBotTyping(true);
 
         try {
           const response = await sendMessage(currentConversation.id, userInput);
-          const botResponse = response.data;
-          setBotTyping(false); // Hide typing animation
-          setCurrentConversationState({
-            ...updatedConversation,
-            messages: [
-              ...updatedConversation.messages,
-              ...botResponse.map(msg => ({ text: msg.content, type: 'bot' }))
-            ]
-          });
+          const botMessages = response.data.map(msg => ({ text: msg.content, type: 'bot' }));
+          setCurrentConversation(prevState => ({
+            ...prevState,
+            messages: [...prevState.messages, ...botMessages]
+          }));
         } catch (error) {
-          setBotTyping(false); // Hide typing animation on error
           console.error('Error sending message:', error);
+        } finally {
+          setBotTyping(false);
         }
       }
     }
   };
 
-  const confirmDelete = async (id) => {
+  const handleConfirmDelete = async (id) => {
     try {
       const conversationToDelete = conversations.find(convo => convo.id === id);
-      if (!conversationToDelete) {
-        console.error('Conversation not found.');
-        return;
-      }
+      if (!conversationToDelete) return;
+
       const result = await Swal.fire({
         title: `Are you sure you want to delete conversation ${conversationToDelete.id + 1}?`,
         showCancelButton: true,
@@ -131,9 +121,9 @@ const Dashboard = () => {
 
       if (result.isConfirmed) {
         await deleteConversation(id);
-        setConversations(conversations.filter(convo => convo.id !== id));
-        if (currentConversation && currentConversation.id === id) {
-          setCurrentConversationState(null);
+        setConversations(prevConversations => prevConversations.filter(convo => convo.id !== id));
+        if (currentConversation?.id === id) {
+          setCurrentConversation(null);
         }
         Swal.fire('Deleted!', 'Your conversation has been deleted.', 'success');
       } else if (result.dismiss === Swal.DismissReason.cancel) {
@@ -144,52 +134,85 @@ const Dashboard = () => {
     }
   };
 
+  const renderConversations = () => {
+    if (loadingConversations) {
+      return (
+        <div className="bg-light-gray h-full flex items-center justify-center">
+          <div className="spinner"></div> Loading Conversations...
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-light-gray h-full conversation-history">
+        {conversations.map(convo => (
+          <div
+            key={convo.id}
+            className={`p-2 mb-2 border rounded flex justify-between items-center cursor-pointer ${currentConversation?.id === convo.id ? 'bg-custom-purple text-white' : 'bg-light-gray text-black'}`}
+            onClick={() => handleSetCurrentConversation(convo)}
+          >
+            <span>Conversation {convo.id + 1}</span>
+            <button className="p-1 ml-2" onClick={(e) => { e.stopPropagation(); handleConfirmDelete(convo.id); }}>
+              <img src="/images/delete.png" alt="Delete" className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderMessages = () => {
+    if (loadingChat) {
+      return (
+        <div className="flex items-center justify-center">
+          <div className="spinner"></div> Loading Messages...
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {currentConversation.messages.map((msg, index) => (
+          <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {msg.type === 'bot' && (
+              <div className="flex items-center">
+                <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
+                <div className="text-custom-blue bg-#F0F9FF">{msg.text}</div>
+              </div>
+            )}
+            {msg.type === 'user' && (
+              <div className="flex items-center">
+                <div className="p-2 rounded bg-custom-purple text-white">{msg.text}</div>
+                <img src={userAvatar} alt="User" className="h-8 w-8 rounded-full ml-2" />
+              </div>
+            )}
+          </div>
+        ))}
+        {botTyping && (
+          <div className="flex items-center">
+            <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
+            <div className="typing-indicator">
+              <div className="dot"></div>
+              <div className="dot"></div>
+              <div className="dot"></div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
       <div className="flex flex-grow h-full">
         <div className={`flex-shrink-0 p-4 ${showLeftSection ? 'block' : 'hidden'} lg:block w-full lg:w-2/5`} style={{ minHeight: 'calc(100vh - 72px)' }}>
           <div className="flex items-center justify-between bg-custom-blue text-white p-2 mb-4">
-            <span className='font-manrope text-base font-normal leading-5 text-left'>Conversation</span>
-            <span className="cursor-pointer w-6 h-6" onClick={addConversation}>+</span>
-            <img
-              src="/images/menu-toggle.png"
-              alt="Toggle"
-              className="lg:hidden cursor-pointer"
-              onClick={toggleSection}
-            />
+            <span className="font-manrope text-base font-normal">Conversation</span>
+            <span className="cursor-pointer w-6 h-6" onClick={handleAddConversation}>+</span>
+            <img src="/images/menu-toggle.png" alt="Toggle" className="lg:hidden cursor-pointer" onClick={handleToggleSection} />
           </div>
-          {loadingConversations ? (
-            <div className="bg-light-gray h-full lg:w-full w-4/5 conversation-history flex items-center justify-center">
-              <div className="spinner"></div>
-              Loading Conversations...
-            </div>
-          ) : (
-            <div className="bg-light-gray h-full lg:w-full w-4/5 conversation-history">
-              {conversations.map(convo => (
-                <div
-                  key={convo.id}
-                  className={`p-2 mb-2 border rounded flex justify-between items-center cursor-pointer ${currentConversation && currentConversation.id === convo.id ? 'bg-custom-purple text-white' : 'bg-light-gray text-black'}`}
-                  onClick={() => setCurrentConversation(convo)}
-                >
-                  <span>Conversation {convo.id + 1}</span>
-                  <button
-                    className="p-1 ml-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      confirmDelete(convo.id);
-                    }}
-                  >
-                    <img
-                      src="/images/delete.png"
-                      alt="Delete Conversation"
-                      className="w-4 h-4"
-                    />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          {renderConversations()}
         </div>
         <div className={`flex-grow p-4 ${showLeftSection ? 'hidden' : 'block'}`} style={{ minHeight: 'calc(100vh -72px)' }}>
           <div className="flex items-center justify-between bg-custom-blue text-white p-2 mb-4">
@@ -197,59 +220,14 @@ const Dashboard = () => {
               <img src="/images/profile image.png" alt="profile" className="h-8 w-8 rounded-full mr-2" />
               <span>Chatbot</span>
             </div>
-            <img
-              src="/images/menu-toggle.png"
-              alt="Toggle Icon"
-              className="lg:hidden cursor-pointer"
-              onClick={toggleSection}
-            />
+            <img src="/images/menu-toggle.png" alt="Toggle" className="lg:hidden cursor-pointer" onClick={handleToggleSection} />
           </div>
           <div className="flex flex-col h-full">
             {currentConversation ? (
               <>
                 <div className="text-center text-gray-500 mb-2">{currentDateTime}</div>
                 <div className="flex-grow bg-gray-100 p-4 overflow-y-auto">
-                  {loadingChat ? (
-                    <div className="flex items-center justify-center">
-                      <div className="spinner"></div>
-                      Loading Messages...
-                    </div>
-                  ) : (
-                    <>
-                      {currentConversation.messages && currentConversation.messages.map((msg, index) => (
-                        <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          {msg.type === 'bot' && (
-                            <div className='flex'>
-                              <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
-                              <div className='text-custom-blue bg-#F0F9FF'>
-                                {msg.text}
-                              </div>
-                            </div>
-                          )}
-                          {msg.type === 'user' && (
-                            <div className="flex items-center">
-                              <div className={`p-2 rounded ${msg.type === 'user' ? 'bg-custom-purple text-white' : 'bg-gray-200 text-black'}`}>
-                                {msg.text}
-                              </div>
-                              <img src={userAvatar} alt="User Avatar" className="h-8 w-8 rounded-full mr-2" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {botTyping && (
-                        <div className="flex justify-start">
-                          <div className='flex items-center'>
-                            <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
-                            <div className='typing-indicator'>
-                              <div className='dot'></div>
-                              <div className='dot'></div>
-                              <div className='dot'></div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
+                  {renderMessages()}
                 </div>
               </>
             ) : (
@@ -265,11 +243,7 @@ const Dashboard = () => {
                 className="flex-grow p-2 border rounded"
               />
               <button className="bg-custom-purple rounded-full p-2 ml-2">
-                <img
-                  src="/images/send.png"
-                  alt="Logo"
-                  className="w-8 h-8 rounded-full"
-                />
+                <img src="/images/send.png" alt="Send" className="w-8 h-8 rounded-full" />
               </button>
             </div>
           </div>
