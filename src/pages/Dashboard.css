@@ -3,7 +3,7 @@
     height: 50px;
     border-radius: 50%;
     border: 8px solid #ccc;
-    border-top-color: purple;
+    border-top-color: #6D31ED;
     animation: spin 1s linear infinite;
   }
   

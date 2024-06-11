@@ -212,8 +212,17 @@ const Dashboard = () => {
                     currentConversation.messages && currentConversation.messages.map((msg, index) => (
                       <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                         {msg.type === 'bot' && (
-                          <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
+                          <div className='flex'>
+                            <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
+                            <div className='text-custom-blue bg-#F0F9FF'>
+                              {msg.text}
+                            </div>
+                          </div>
+
+
                         )}
+
+
                         {msg.type === 'user' && (
                           <div className="flex items-center">
                             <div className={`p-2 rounded ${msg.type === 'user' ? 'bg-custom-purple text-white' : 'bg-gray-200 text-black'}`}>
