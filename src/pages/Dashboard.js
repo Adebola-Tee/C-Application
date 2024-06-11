@@ -12,9 +12,10 @@ const Dashboard = () => {
   const [conversations, setConversations] = useState([]);
   const [currentConversation, setCurrentConversationState] = useState(null);
   const [userInput, setUserInput] = useState('');
-  const [loadingConversations, setLoadingConversations] = useState(false); // State for conversation loading
-  const [loadingChat, setLoadingChat] = useState(false); // State for chat loading
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingChat, setLoadingChat] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState('');
+  const [botTyping, setBotTyping] = useState(false);
 
   useEffect(() => {
     const getConversations = async () => {
@@ -38,10 +39,8 @@ const Dashboard = () => {
 
     updateDateTime();
 
-    // Update the date and time every minute
     const intervalId = setInterval(updateDateTime, 60000);
 
-    // Clean up the interval on component unmount
     return () => clearInterval(intervalId);
   }, []);
 
@@ -52,26 +51,26 @@ const Dashboard = () => {
   const addConversation = async () => {
     try {
       const response = await createConversation();
-      const newConversation = { ...response.data, messages: [] }; // Ensure messages is an empty array
+      const newConversation = { ...response.data, messages: [] };
       setConversations([...conversations, newConversation]);
       setCurrentConversationState(newConversation);
-      setShowLeftSection(false); // Close the left section on small screens
+      setShowLeftSection(false);
     } catch (error) {
       console.error('Error creating conversation:', error);
     }
   };
 
   const setCurrentConversation = async (conversation) => {
-    setLoadingChat(true); // Start chat loading spinner
+    setLoadingChat(true);
     try {
       const response = await fetchConversationMessages(conversation.id);
-      setCurrentConversationState({ ...conversation, messages: response.data || [] }); // Ensure messages is an array
+      setCurrentConversationState({ ...conversation, messages: response.data || [] });
     } catch (error) {
       console.error('Error fetching conversation messages:', error);
     } finally {
-      setLoadingChat(false); // Stop chat loading spinner
+      setLoadingChat(false);
     }
-    setShowLeftSection(false); // Close the left section when a conversation is selected
+    setShowLeftSection(false);
   };
 
   const handleInputChange = (e) => {
@@ -88,14 +87,21 @@ const Dashboard = () => {
         setCurrentConversationState(updatedConversation);
         setUserInput('');
 
+        setBotTyping(true); // Show typing animation
+
         try {
           const response = await sendMessage(currentConversation.id, userInput);
           const botResponse = response.data;
+          setBotTyping(false); // Hide typing animation
           setCurrentConversationState({
             ...updatedConversation,
-            messages: [...updatedConversation.messages, ...botResponse.map(msg => ({ text: msg.content, type: 'bot' }))]
+            messages: [
+              ...updatedConversation.messages,
+              ...botResponse.map(msg => ({ text: msg.content, type: 'bot' }))
+            ]
           });
         } catch (error) {
+          setBotTyping(false); // Hide typing animation on error
           console.error('Error sending message:', error);
         }
       }
@@ -119,7 +125,7 @@ const Dashboard = () => {
         reverseButtons: true,
         customClass: {
           title: 'custom-swal-title',
-          popup: 'bg-custom-purple', // Add a custom class for styling
+          popup: 'bg-custom-purple',
         },
       });
 
@@ -171,7 +177,7 @@ const Dashboard = () => {
                     className="p-1 ml-2"
                     onClick={(e) => {
                       e.stopPropagation();
-                      confirmDelete(convo.id); // Change to confirmDelete
+                      confirmDelete(convo.id);
                     }}
                   >
                     <img
@@ -209,30 +215,40 @@ const Dashboard = () => {
                       Loading Messages...
                     </div>
                   ) : (
-                    currentConversation.messages && currentConversation.messages.map((msg, index) => (
-                      <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        {msg.type === 'bot' && (
-                          <div className='flex'>
+                    <>
+                      {currentConversation.messages && currentConversation.messages.map((msg, index) => (
+                        <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          {msg.type === 'bot' && (
+                            <div className='flex'>
+                              <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
+                              <div className='text-custom-blue bg-#F0F9FF'>
+                                {msg.text}
+                              </div>
+                            </div>
+                          )}
+                          {msg.type === 'user' && (
+                            <div className="flex items-center">
+                              <div className={`p-2 rounded ${msg.type === 'user' ? 'bg-custom-purple text-white' : 'bg-gray-200 text-black'}`}>
+                                {msg.text}
+                              </div>
+                              <img src={userAvatar} alt="User Avatar" className="h-8 w-8 rounded-full mr-2" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {botTyping && (
+                        <div className="flex justify-start">
+                          <div className='flex items-center'>
                             <img src="/images/profile image.png" alt="Chatbot" className="h-8 w-8 rounded-full mr-2" />
-                            <div className='text-custom-blue bg-#F0F9FF'>
-                              {msg.text}
+                            <div className='typing-indicator'>
+                              <div className='dot'></div>
+                              <div className='dot'></div>
+                              <div className='dot'></div>
                             </div>
                           </div>
-
-
-                        )}
-
-
-                        {msg.type === 'user' && (
-                          <div className="flex items-center">
-                            <div className={`p-2 rounded ${msg.type === 'user' ? 'bg-custom-purple text-white' : 'bg-gray-200 text-black'}`}>
-                              {msg.text}
-                            </div>
-                            <img src={userAvatar} alt="User Avatar" className="h-8 w-8 rounded-full mr-2" />
-                          </div>
-                        )}
-                      </div>
-                    ))
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </>
